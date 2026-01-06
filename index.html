@@ -1,0 +1,129 @@
+<!-- index.html
+     Open with VS Code Live Server.
+     Put your videos in ./videos/ (e.g., videos/jumping.mp4)
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sora Video Labeling</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 24px;
+        line-height: 1.4;
+      }
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+      }
+      .word {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 12px 0 6px;
+      }
+      .question {
+        font-size: 18px;
+        margin: 8px 0 12px;
+      }
+      .choices {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      button {
+        padding: 10px 14px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .feedback {
+        margin-top: 8px;
+        font-weight: 600;
+      }
+      .hint {
+        color: #555;
+        margin-top: 14px;
+        font-size: 14px;
+      }
+      video {
+        width: 100%;
+        max-height: 520px;
+        background: #000;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Video Labeling (Local)</h1>
+
+      <!-- Video -->
+      <video id="video" controls preload="metadata">
+        <!-- JS will set the src -->
+        Sorry, your browser does not support the video tag.
+      </video>
+
+      <!-- Action word -->
+      <div class="word">
+        Action word: <span id="actionWord">...</span>
+      </div>
+
+      <!-- Question -->
+      <div class="question">Does this video match the word above?</div>
+
+      <!-- Multiple choice -->
+      <div class="choices">
+        <button type="button" data-answer="Yes">Yes</button>
+        <button type="button" data-answer="No">No</button>
+        <button type="button" data-answer="Unsure">Unsure</button>
+      </div>
+
+      <!-- Feedback (no data collection yet) -->
+      <div id="feedback" class="feedback"></div>
+
+    </div>
+
+    <script>
+      // 1) Point this to the file you want to play (relative to index.html)
+      const videoFile = "videos/stack.mp4"; // <-- change this to your actual filename
+
+      // 2) Derive the action word = filename without folder + without ".mp4"
+      function deriveActionWord(path) {
+        // Remove any query string just in case (e.g., "...mp4?x=1")
+        const noQuery = path.split("?")[0];
+
+        // Grab last part after "/" or "\"
+        const parts = noQuery.split(/[/\\]/);
+        const filename = parts[parts.length - 1];
+
+        // Remove final extension (".mp4", ".mov", etc.)
+        const dot = filename.lastIndexOf(".");
+        return dot === -1 ? filename : filename.slice(0, dot);
+      }
+
+      // 3) Load video + show action word
+      const videoEl = document.getElementById("video");
+      const actionWordEl = document.getElementById("actionWord");
+      const feedbackEl = document.getElementById("feedback");
+
+      videoEl.src = videoFile;
+      actionWordEl.textContent = deriveActionWord(videoFile);
+
+      // 4) Handle multiple choice clicks
+      const buttons = document.querySelectorAll("button[data-answer]");
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const answer = btn.dataset.answer;
+
+          // For now: show feedback on screen (we'll store it later)
+          feedbackEl.textContent = `You selected: ${answer}`;
+
+          // Optional: disable buttons after selection to prevent multiple clicks
+          buttons.forEach((b) => (b.disabled = true));
+        });
+      });
+    </script>
+  </body>
+</html>

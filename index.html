@@ -1,56 +1,76 @@
-<!-- index.html
-     Open with VS Code Live Server.
-     Put your videos in ./videos/ (e.g., videos/jumping.mp4)
--->
+```html
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sora Video Labeling</title>
+    <title>Video Labeling</title>
     <style>
       body {
         font-family: Arial, sans-serif;
         margin: 24px;
         line-height: 1.4;
       }
+
       .container {
         max-width: 980px;
         margin: 0 auto;
       }
+
+      video {
+        width: 100%;
+        max-height: 520px;
+        background: #000;
+        display: block;
+      }
+
+      .below-video {
+        text-align: center;
+        margin-top: 14px;
+      }
+
       .word {
         font-size: 28px;
         font-weight: 700;
         margin: 12px 0 6px;
       }
+
       .question {
         font-size: 18px;
         margin: 8px 0 12px;
       }
-      .choices {
+
+      .choices,
+      .nav {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+        justify-content: center;
         margin-bottom: 12px;
       }
+
       button {
         padding: 10px 14px;
         font-size: 16px;
         cursor: pointer;
       }
+
       .feedback {
         margin-top: 8px;
         font-weight: 600;
+        min-height: 1.2em;
       }
-      .hint {
+
+      .meta {
         color: #555;
-        margin-top: 14px;
+        margin-top: 10px;
         font-size: 14px;
       }
-      video {
-        width: 100%;
-        max-height: 520px;
-        background: #000;
+
+      code {
+        background: #f3f3f3;
+        padding: 2px 4px;
+        border-radius: 4px;
       }
     </style>
   </head>
@@ -61,69 +81,133 @@
 
       <!-- Video -->
       <video id="video" controls preload="metadata">
-        <!-- JS will set the src -->
         Sorry, your browser does not support the video tag.
       </video>
 
-      <!-- Action word -->
-      <div class="word">
-        Action word: <span id="actionWord">...</span>
+      <div class="below-video">
+        <!-- Prompt -->
+        <div class="word">Prompt: <span id="prompt">...</span></div>
+
+        <!-- Question -->
+        <div class="question">Does this video match the prompt above?</div>
+
+        <!-- Multiple choice -->
+        <div class="choices">
+          <button type="button" class="answer-btn" data-answer="Yes">Yes</button>
+          <button type="button" class="answer-btn" data-answer="No">No</button>
+          <button type="button" class="answer-btn" data-answer="Unsure">Unsure</button>
+        </div>
+
+        <!-- Next -->
+        <div class="nav">
+          <button type="button" id="nextBtn">Next</button>
+        </div>
+
+        <!-- Feedback -->
+        <div id="feedback" class="feedback"></div>
+
+        <!-- Meta -->
+        <div id="meta" class="meta"></div>
+
+        <div class="meta">
+          Videos are loaded from <code>videos_manifest.json</code> and served from the
+          <code>videos/</code> folder.
+        </div>
       </div>
-
-      <!-- Question -->
-      <div class="question">Does this video match the word above?</div>
-
-      <!-- Multiple choice -->
-      <div class="choices">
-        <button type="button" data-answer="Yes">Yes</button>
-        <button type="button" data-answer="No">No</button>
-        <button type="button" data-answer="Unsure">Unsure</button>
-      </div>
-
-      <!-- Feedback (no data collection yet) -->
-      <div id="feedback" class="feedback"></div>
-
     </div>
 
     <script>
-      // 1) Point this to the file you want to play (relative to index.html)
-      const videoFile = "videos/stack.mp4"; // <-- change this to your actual filename
-
-      // 2) Derive the action word = filename without folder + without ".mp4"
-      function deriveActionWord(path) {
-        // Remove any query string just in case (e.g., "...mp4?x=1")
-        const noQuery = path.split("?")[0];
-
-        // Grab last part after "/" or "\"
-        const parts = noQuery.split(/[/\\]/);
-        const filename = parts[parts.length - 1];
-
-        // Remove final extension (".mp4", ".mov", etc.)
-        const dot = filename.lastIndexOf(".");
-        return dot === -1 ? filename : filename.slice(0, dot);
+      // -------- Helpers --------
+      function shuffleInPlace(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
       }
 
-      // 3) Load video + show action word
+      function derivePromptFromFilename(filename) {
+        const decoded = decodeURIComponent(filename);
+        const dot = decoded.lastIndexOf(".");
+        return dot === -1 ? decoded : decoded.slice(0, dot);
+      }
+
+      // -------- DOM --------
       const videoEl = document.getElementById("video");
-      const actionWordEl = document.getElementById("actionWord");
+      const promptEl = document.getElementById("prompt");
       const feedbackEl = document.getElementById("feedback");
+      const metaEl = document.getElementById("meta");
+      const nextBtn = document.getElementById("nextBtn");
+      const answerButtons = Array.from(document.querySelectorAll(".answer-btn"));
 
-      videoEl.src = videoFile;
-      actionWordEl.textContent = deriveActionWord(videoFile);
+      // -------- State --------
+      let playlist = [];
+      let currentIndex = 0;
 
-      // 4) Handle multiple choice clicks
-      const buttons = document.querySelectorAll("button[data-answer]");
-      buttons.forEach((btn) => {
+      function setButtonsEnabled(enabled) {
+        answerButtons.forEach((b) => (b.disabled = !enabled));
+      }
+
+      function loadCurrentVideo() {
+        if (playlist.length === 0) {
+          feedbackEl.textContent = "No videos found. Check videos_manifest.json.";
+          metaEl.textContent = "";
+          return;
+        }
+
+        const filename = playlist[currentIndex];
+        const src = `videos/${filename}`;
+
+        videoEl.src = src;
+        videoEl.load();
+        promptEl.textContent = derivePromptFromFilename(filename);
+
+        feedbackEl.textContent = "";
+        setButtonsEnabled(true);
+        metaEl.textContent = `Video ${currentIndex + 1} / ${playlist.length} — ${filename}`;
+      }
+
+      function nextVideo() {
+        if (playlist.length === 0) return;
+        currentIndex = (currentIndex + 1) % playlist.length;
+        loadCurrentVideo();
+      }
+
+      // Answer click (no saving yet)
+      answerButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const answer = btn.dataset.answer;
-
-          // For now: show feedback on screen (we'll store it later)
           feedbackEl.textContent = `You selected: ${answer}`;
-
-          // Optional: disable buttons after selection to prevent multiple clicks
-          buttons.forEach((b) => (b.disabled = true));
+          setButtonsEnabled(false);
         });
       });
+
+      nextBtn.addEventListener("click", nextVideo);
+
+      // -------- Load manifest and start --------
+      async function init() {
+        try {
+          const res = await fetch("videos_manifest.json", { cache: "no-store" });
+          if (!res.ok) throw new Error(`Failed to load videos_manifest.json (HTTP ${res.status})`);
+
+          const data = await res.json();
+          if (!Array.isArray(data) || data.length === 0) {
+            throw new Error("videos_manifest.json is empty or not a JSON array.");
+          }
+
+          playlist = data.slice();
+          shuffleInPlace(playlist); // random order on load
+          currentIndex = 0;
+          loadCurrentVideo();
+        } catch (err) {
+          feedbackEl.textContent =
+            "Could not load videos_manifest.json. Create it at the repo root, then refresh.";
+          metaEl.textContent = String(err.message || err);
+        }
+      }
+
+      init();
     </script>
   </body>
 </html>
+```

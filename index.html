@@ -77,7 +77,7 @@
 
   <body>
     <div class="container">
-      <h1>Video Labeling (Local)</h1>
+      <h1>Video Labeling</h1>
 
       <!-- Video -->
       <video id="video" controls preload="metadata">
@@ -86,16 +86,15 @@
 
       <div class="below-video">
         <!-- Prompt -->
-        <div class="word">Prompt: <span id="prompt">...</span></div>
+        <div class="word"><span id="prompt">...</span>.</div>
 
         <!-- Question -->
-        <div class="question">Does this video match the prompt above?</div>
+        <div class="question">Does this video match the action described in the sentence above?</div>
 
         <!-- Multiple choice -->
         <div class="choices">
           <button type="button" class="answer-btn" data-answer="Yes">Yes</button>
           <button type="button" class="answer-btn" data-answer="No">No</button>
-          <button type="button" class="answer-btn" data-answer="Unsure">Unsure</button>
         </div>
 
         <!-- Next -->
